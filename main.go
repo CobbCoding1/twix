@@ -56,7 +56,11 @@ func parseCommand(command string) bool {
 	case "FEED":
 		fmt.Println(posts)
 		break
-	// example: COMMENT <id> <message>
+	// example: FETCH <post_id-comment_id...>
+	case "FETCH":
+		fmt.Println(posts)
+		break
+	// example: COMMENT <id-comment_id...> <message>
 	case "COMMENT":
 		if len(words) < 3 {
 			fmt.Println("Not enough arguments to command ", words[0])
@@ -75,7 +79,7 @@ func parseCommand(command string) bool {
 		comment := Post{id: uint64(len(posts[id].comments)), content: msg}
 		posts[id].comments = append(posts[id].comments, comment)
 		break
-		// example: LIKE <id> <comment-id: optional>
+	// example: LIKE <id-comment_id..>
 	case "LIKE":
 		id, err := strconv.Atoi(words[1])
 		if err != nil {
