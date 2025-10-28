@@ -40,6 +40,10 @@ func handleConnection(conn net.Conn) {
 
 func parseCommand(command string) bool {
 	words := strings.Fields(command)
+	if len(words) < 2 {
+		fmt.Println("Not a valid command")
+		return false
+	}
 	switch words[0] {
 	// example: POST <message>
 	case "POST":
@@ -54,21 +58,46 @@ func parseCommand(command string) bool {
 		break
 	// example: COMMENT <id> <message>
 	case "COMMENT":
+		if len(words) < 3 {
+			fmt.Println("Not enough arguments to command ", words[0])
+			return false
+		}
 		msg := strings.Join(words[2:], " ")
 		id, err := strconv.Atoi(words[1])
 		if err != nil {
 			fmt.Println(words[0], " Could not convert to integer: ", words[1])
 			return false
 		}
+		if id >= len(posts) {
+			fmt.Printf("Post %v does not exist\n", id)
+			return false
+		}
 		comment := Post{id: uint64(len(posts[id].comments)), content: msg}
 		posts[id].comments = append(posts[id].comments, comment)
 		break
-	// example: LIKE <id>
+		// example: LIKE <id> <comment-id: optional>
 	case "LIKE":
 		id, err := strconv.Atoi(words[1])
 		if err != nil {
 			fmt.Println(words[0], " Could not convert to integer: ", words[1])
 			return false
+		}
+		if id >= len(posts) {
+			fmt.Printf("Post %v does not exist\n", id)
+			return false
+		}
+		if len(words) == 3 {
+			comment_id, err := strconv.Atoi(words[2])
+			if err != nil {
+				fmt.Println(words[0], " Could not convert to integer: ", words[2])
+				return false
+			}
+			if comment_id >= len(posts[id].comments) {
+				fmt.Printf("Comment %v on post %v does not exist\n", comment_id, id)
+				return false
+			}
+			posts[id].comments[comment_id].likes += 1
+			break
 		}
 		posts[id].likes += 1
 		break
