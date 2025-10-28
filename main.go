@@ -25,12 +25,20 @@ var posts []Post
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
-	msg, _ := bufio.NewReader(conn).ReadString('\n')
-	parseCommand(msg)
+	msg, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		fmt.Println("Could not read message from connection: ", err)
+		return
+	}
+	ok := parseCommand(msg)
+	if !ok {
+		conn.Write([]byte("Could not parse message...\n"))
+		return
+	}
 	conn.Write([]byte("Message recieved...\n"))
 }
 
-func parseCommand(command string) {
+func parseCommand(command string) bool {
 	words := strings.Fields(command)
 	switch words[0] {
 	// example: POST <message>
@@ -47,26 +55,42 @@ func parseCommand(command string) {
 	// example: COMMENT <id> <message>
 	case "COMMENT":
 		msg := strings.Join(words[2:], " ")
-		id, _ := strconv.Atoi(words[1])
+		id, err := strconv.Atoi(words[1])
+		if err != nil {
+			fmt.Println(words[0], " Could not convert to integer: ", words[1])
+			return false
+		}
 		comment := Post{id: uint64(len(posts[id].comments)), content: msg}
 		posts[id].comments = append(posts[id].comments, comment)
 		break
 	// example: LIKE <id>
 	case "LIKE":
-		id, _ := strconv.Atoi(words[1])
+		id, err := strconv.Atoi(words[1])
+		if err != nil {
+			fmt.Println(words[0], " Could not convert to integer: ", words[1])
+			return false
+		}
 		posts[id].likes += 1
 		break
 	default:
 		log.Fatalf("Unknown command: %s\n", words[0])
 	}
+	return true
 }
 
 func main() {
-	list, _ := net.Listen("tcp", PORT)
+	list, err := net.Listen("tcp", PORT)
+	if err != nil {
+		log.Fatalf("Could not start server: %s\n", err)
+	}
 	defer list.Close()
 	fmt.Println("Now accepting connections...")
 	for {
-		conn, _ := list.Accept()
+		conn, err := list.Accept()
+		if err != nil {
+			fmt.Println("Could not accept incoming request: ", err)
+			continue
+		}
 		go handleConnection(conn)
 	}
 }
