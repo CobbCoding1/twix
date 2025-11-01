@@ -38,6 +38,34 @@ func handleConnection(conn net.Conn) {
 	conn.Write([]byte("Message recieved...\n"))
 }
 
+func parsePostId(id_s string) *Post {
+	ids := strings.Split(id_s, "-")
+	id, err := strconv.Atoi(ids[0])
+	if err != nil {
+		fmt.Println("Could not convert to integer: ", ids[0])
+		return nil
+	}
+	if id >= len(posts) {
+		fmt.Printf("Post %v does not exist\n", id)
+		return nil
+	}
+	cur_post := &posts[id]
+	for id_i := 1; id_i < len(ids); id_i += 1 {
+		id := ids[id_i]
+		id_val, err := strconv.Atoi(id)
+		if err != nil {
+			fmt.Println("Could not convert to integer: ", id)
+			return nil
+		}
+		if id_val >= len(cur_post.comments) {
+			fmt.Printf("Post %v does not exist\n", id_val)
+			return nil
+		}
+		cur_post = &cur_post.comments[id_val]
+	}
+	return cur_post
+}
+
 func parseCommand(command string) bool {
 	words := strings.Fields(command)
 	if len(words) < 2 {
@@ -58,7 +86,16 @@ func parseCommand(command string) bool {
 		break
 	// example: FETCH <post_id-comment_id...>
 	case "FETCH":
-		fmt.Println(posts)
+		if len(words) < 2 {
+			fmt.Println("Not enough arguments to command ", words[0])
+			return false
+		}
+		post := parsePostId(words[1])
+		if post == nil {
+			fmt.Println("Could not parse ", words[1])
+			return false
+		}
+		fmt.Println(post)
 		break
 	// example: COMMENT <id-comment_id...> <message>
 	case "COMMENT":
@@ -67,43 +104,23 @@ func parseCommand(command string) bool {
 			return false
 		}
 		msg := strings.Join(words[2:], " ")
-		id, err := strconv.Atoi(words[1])
-		if err != nil {
-			fmt.Println(words[0], " Could not convert to integer: ", words[1])
+		post := parsePostId(words[1])
+		if post == nil {
+			fmt.Println("Could not parse ", words[1])
 			return false
 		}
-		if id >= len(posts) {
-			fmt.Printf("Post %v does not exist\n", id)
-			return false
-		}
-		comment := Post{id: uint64(len(posts[id].comments)), content: msg}
-		posts[id].comments = append(posts[id].comments, comment)
+		fmt.Println(post)
+		comment := Post{id: uint64(len(post.comments)), content: msg}
+		post.comments = append(post.comments, comment)
 		break
 	// example: LIKE <id-comment_id..>
 	case "LIKE":
-		id, err := strconv.Atoi(words[1])
-		if err != nil {
-			fmt.Println(words[0], " Could not convert to integer: ", words[1])
+		post := parsePostId(words[1])
+		if post == nil {
+			fmt.Println("Could not parse ", words[1])
 			return false
 		}
-		if id >= len(posts) {
-			fmt.Printf("Post %v does not exist\n", id)
-			return false
-		}
-		if len(words) == 3 {
-			comment_id, err := strconv.Atoi(words[2])
-			if err != nil {
-				fmt.Println(words[0], " Could not convert to integer: ", words[2])
-				return false
-			}
-			if comment_id >= len(posts[id].comments) {
-				fmt.Printf("Comment %v on post %v does not exist\n", comment_id, id)
-				return false
-			}
-			posts[id].comments[comment_id].likes += 1
-			break
-		}
-		posts[id].likes += 1
+		post.likes += 1
 		break
 	default:
 		log.Fatalf("Unknown command: %s\n", words[0])
