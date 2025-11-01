@@ -30,12 +30,12 @@ func handleConnection(conn net.Conn) {
 		fmt.Println("Could not read message from connection: ", err)
 		return
 	}
-	ok := parseCommand(msg)
+	res, ok := parseCommand(msg)
 	if !ok {
 		conn.Write([]byte("Could not parse message...\n"))
 		return
 	}
-	conn.Write([]byte("Message recieved...\n"))
+	conn.Write([]byte(res))
 }
 
 func parsePostId(id_s string) *Post {
@@ -66,11 +66,12 @@ func parsePostId(id_s string) *Post {
 	return cur_post
 }
 
-func parseCommand(command string) bool {
+func parseCommand(command string) (string, bool) {
 	words := strings.Fields(command)
+	var res string
 	if len(words) < 2 {
 		fmt.Println("Not a valid command")
-		return false
+		return "", false
 	}
 	switch words[0] {
 	// example: POST <message>
@@ -78,54 +79,56 @@ func parseCommand(command string) bool {
 		msg := strings.Join(words[1:], " ")
 		post := Post{id: uint64(len(posts)), content: msg}
 		posts = append(posts, post)
-		fmt.Println(msg)
+		res = "Post created successfully..."
 		break
 	// example: FEED <page count>
 	case "FEED":
-		fmt.Println(posts)
+		res = fmt.Sprintf(res, "%v", posts)
 		break
 	// example: FETCH <post_id-comment_id...>
 	case "FETCH":
 		if len(words) < 2 {
 			fmt.Println("Not enough arguments to command ", words[0])
-			return false
+			return "", false
 		}
 		post := parsePostId(words[1])
 		if post == nil {
 			fmt.Println("Could not parse ", words[1])
-			return false
+			return "", false
 		}
-		fmt.Println(post)
+		res = fmt.Sprintf(res, "%v", post)
 		break
 	// example: COMMENT <id-comment_id...> <message>
 	case "COMMENT":
 		if len(words) < 3 {
 			fmt.Println("Not enough arguments to command ", words[0])
-			return false
+			return "", false
 		}
 		msg := strings.Join(words[2:], " ")
 		post := parsePostId(words[1])
 		if post == nil {
 			fmt.Println("Could not parse ", words[1])
-			return false
+			return "", false
 		}
 		fmt.Println(post)
 		comment := Post{id: uint64(len(post.comments)), content: msg}
 		post.comments = append(post.comments, comment)
+		res = "Comment posted successfully..."
 		break
 	// example: LIKE <id-comment_id..>
 	case "LIKE":
 		post := parsePostId(words[1])
 		if post == nil {
 			fmt.Println("Could not parse ", words[1])
-			return false
+			return "", false
 		}
 		post.likes += 1
+		res = "Post liked successfully..."
 		break
 	default:
 		log.Fatalf("Unknown command: %s\n", words[0])
 	}
-	return true
+	return res, true
 }
 
 func main() {
