@@ -137,7 +137,7 @@ func main() {
 		log.Fatalf("Could not start server: %s\n", err)
 	}
 	defer list.Close()
-	fmt.Println("Now accepting connections...")
+	fmt.Printf("Now accepting connections on port %v...\n", PORT)
 	for {
 		conn, err := list.Accept()
 		if err != nil {
