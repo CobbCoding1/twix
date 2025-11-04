@@ -3,7 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // "FEED"
@@ -46,15 +49,66 @@ func HandleLike(post string) (string, error) {
 	return bufio.NewReader(conn).ReadString('\n')
 }
 
+type model struct {
+	cursor int
+	width  int
+	height int
+	text   string
+}
+
+func (m model) Init() tea.Cmd {
+	return nil
+}
+
+func initialModel() model {
+	return model{
+		text: "",
+	}
+}
+
+func (m model) View() string {
+	s := fmt.Sprintf("cursor %v\n", m.cursor)
+	s += fmt.Sprintf("1. cobbcoding\nThis is a post.\n\n")
+	s += fmt.Sprintf("2. stam\nThis is a post 2.\n\n")
+	for range m.height - 8 {
+		s += "\n"
+	}
+	s += fmt.Sprintf(":%v|", m.text)
+	return s
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg.(type) {
+	case tea.KeyMsg:
+		switch msg.(tea.KeyMsg).String() {
+		case "ctrl+c":
+			return m, tea.Quit
+		case "backspace":
+			if m.cursor > 0 {
+				m.cursor--
+				m.text = m.text[:m.cursor]
+			}
+			break
+		case "enter":
+			m.text = ""
+			m.cursor = 0
+			break
+		default:
+			m.text += msg.(tea.KeyMsg).String()
+			m.cursor += 1
+		}
+	case tea.WindowSizeMsg:
+		m.width = msg.(tea.WindowSizeMsg).Width
+		m.height = msg.(tea.WindowSizeMsg).Height
+		break
+	}
+	return m, nil
+}
+
 func main() {
-	res, _ := HandlePost("This is a post")
-	fmt.Println(res)
-	res, _ = HandleComment("0", "This is a comment")
-	fmt.Println(res)
-	res, _ = HandleLike("0-0")
-	fmt.Println(res)
-	res, _ = HandleFeed(0)
-	fmt.Println(res)
-	res, _ = HandleFetch("0")
-	fmt.Println(res)
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	_, err := p.Run()
+	if err != nil {
+		log.Fatal("Could not start TUI")
+	}
 }
